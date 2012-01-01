@@ -404,7 +404,20 @@ void IARCMission::missionApproach()
 			if((uint8_t)0x90 == TG_srv.response.flightFlag)
 				CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 			if((uint8_t)0x50 == TG_srv.response.flightFlag)
-				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+			{
+				ros::spinOnce();
+				while((ros::ok()) && (localPosNED.z<1.4))
+				{
+					ros::spinOnce();
+					//ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
+					CDJIDrone->attitude_control(0x40, 0, 0, 0.8, yaw_origin);
+					ROS_INFO_THROTTLE(1,"avoidance taking off...");
+					usleep(20000);
+				}
+				break;
+			}
+				//if has obstacle while approaching , break, will FREE
+				//CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 		}
 		if(localPosNED.z < 0.3)	//TODO: Z!!??  accumulated error in z axis!!
 		{

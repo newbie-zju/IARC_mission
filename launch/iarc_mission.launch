@@ -6,9 +6,9 @@
 	<!-- Camera Settings -->
  
 	<!-- Node Settings -->
-	<arg name="yaw_origin_" default="-0.944731"/>
-	<arg name="xMax_" default="2.0"/>
-	<arg name="yMax_" default="6.0"/>
+	<arg name="yaw_origin_" default="1.588599"/>
+	<arg name="xMax_" default="20.0"/>
+	<arg name="yMax_" default="20.0"/>
 	<arg name="output" default="screen"/>
 	<arg name="bluefox" default="true"/>
 	<arg name="proc" default="true"/>
@@ -16,13 +16,15 @@
 	<arg name="trajectorygenerator" default="true"/>
 	<arg name="obstacle_avoidance" default="true"/>
 	<arg name="iarc_tf" default="true"/>
-	<arg name="boundary_detect" default="false"/>
+	<arg name="boundary_detect" default="true"/>
 	
 	<!-- sdk_manifold -->
 	<include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
 
 	<!-- hokuyo_node -->
 	<include file="$(find hokuyo_node)/hokuyo.launch"/>
+
+	<node pkg="guidance" type="guidanceNode" name="guidance"/>
 
 	<!-- laser_detect -->
 	<include file="$(find laser_detect)/launch/laser_detect.launch"/>
@@ -46,7 +48,7 @@
 		pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
 		<param name="xMax" type="double" value="$(arg xMax_)"/>
 		<param name="yMax" type="double" value="$(arg yMax_)"/>
-		<param name="cruiseVel" type="double" value="0.5"/>
+		<param name="cruiseVel" type="double" value="1.0"/>
 		<param name="Kr" type="double" value="1.25"/>
 		<param name="fattractive" type="double" value="1.0"/>
    	</node>
@@ -62,8 +64,8 @@
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
-		<param name="sta_x" type="double" value="1.0"/>
-		<param name="sta_y" type="double" value="3.0"/>
+		<param name="sta_x" type="double" value="0.0"/>
+		<param name="sta_y" type="double" value="10.0"/>
 	</node>
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
