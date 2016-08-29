@@ -8,8 +8,6 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 {
 	irobot_pos_sub = nh_.subscribe("/goal_detected/goal_pose", 10, &IARCMission::irobot_pos_callback, this);
 	dji_local_pos_sub = nh_.subscribe("/dji_sdk/local_position", 10, &IARCMission::dji_local_pos_callback, this);
-	flight_ctrl_dst_sub = nh_.subscribe("/TG/flight_ctrl_dst", 10, &IARCMission::flight_ctrl_dst_callback,this);
-	//mission_state_pub = nh_.advertise<std_msgs::Int8>("/iarc_mission/mission_state", 10);
 	TG_client = nh_.serviceClient<iarc_mission::TG>("/TG/TG_service");
 	CDJIDrone = new DJIDrone(nh_);
 	while(ros::ok())
@@ -18,21 +16,23 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 		char operate_mode = getchar();	//waiting for start = space
 		switch(operate_mode)
 		{
-			case 32:	//enter space to start mission
+			case 27:	//enter space to start mission
 			{
 				CDJIDrone->request_sdk_permission_control();
-				CDJIDrone->takeoff();
-				sleep(3);	//waiting for quadrotor to arrive 1.2m
-				for(int i = 0; i != 500;i++)
-				{
-					CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, 0);	//TODO: YAW!!!
-					usleep(20000);
-				}
+				//CDJIDrone->takeoff();
+				mission_takeoff();
+// 				sleep(3);	//waiting for quadrotor to arrive 1.2m
+// 				for(int i = 0; i != 500;i++)
+// 				{
+// 					CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, 0);	//TODO: YAW!!!
+// 					usleep(20000);
+// 				}
 				ROS_INFO("takeoff...");
+				ros::Rate loop_rate(50);
 				while(ros::ok())
 				{
 					ros::spinOnce();
-					ROS_INFO("HAHAA");
+					//ROS_INFO("HAHAA");
 					if(irobotPosNED.flag > 0)	//has irobot
 					{
 						ROS_INFO("has irobot");
@@ -44,7 +44,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 						//			white						| S theta = PI
 						
 						//TODO: define the range of theta which means RED, GREEN, WHITE borders
-						if((0.25 * PI < irobotPosNED.theta) && (irobotPosNED.theta < 0.75 * PI))	//PI/4 < theta <3PI/4 means irobot is going forward to green borders, than TRACK!	
+						if((-0.25 < irobotPosNED.theta) && (irobotPosNED.theta < 0.25))	//PI/4 < theta <3PI/4 means irobot is going forward to green borders, than TRACK!	
 						{
 							iarc_mission::TG TG_srv;
 							TG_srv.request.quadrotorState = TRACK;
@@ -74,29 +74,21 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 									ROS_INFO("IARCMission TG_client.call failled......");
 								else
 									CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);	//TODO: YAW = 0?
-								/*if(localPosNED.z < 0.2)
-								{
-									sleep(6);
-									CDJIDrone->takeoff();
-									gotoApproach = false;
-									ROS_INFO("taking off...");
-									break;
-								}*/
 								if(localPosNED.z < 0.2)	//TODO: Z!!??  accumulated error in z axis!!
 								{
 									ROS_INFO("going to land...");
-									CDJIDrone->landing();
+									//CDJIDrone->attitude_control(0x80, 0, 0, -0.3, 0);//0x80:xy position control, x = deltax,y=deltay,z:velocity control,if land:z=-0.3,if take off:z=0.8
+									mission_land();
 									gotoApproach = false;
-									sleep(10);			//TODO: if there is a barrier while sleeping, how???
 									CDJIDrone->request_sdk_permission_control();
-									CDJIDrone->takeoff();
-									ROS_INFO("going to takeoff...");
-									sleep(3);			//TODO: if there is a barrier while sleeping, how???
-									for(int i = 0; i != 500;i++)
-									{
-										CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, 0);	//TODO: YAW!!!
-										usleep(20000);
-									}
+									//CDJIDrone->attitude_control(0x80, 0, 0, 0.8, 0);
+									mission_takeoff();
+//									ROS_INFO("going to takeoff...");
+// 									for(int i = 0; i != 150;i++)
+// 									{
+// 										CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, 0);	//TODO: YAW!!!
+// 										usleep(20000);
+// 									}
 									break;
 								}
 								
@@ -118,8 +110,11 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 						else
 						{	//TODO: DONOT implement CRUISE MODE temporarily
 							//CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);	//TODO: YAW = 0?
+							CDJIDrone->attitude_control(0x50, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);
+							ROS_INFO("vx = %f vy = %f z = %f ",TG_srv.response.flightCtrlDstx,TG_srv.response.flightCtrlDsty,TG_srv.response.flightCtrlDstz );
 						}
-					}	
+					}
+					loop_rate.sleep();
 				}
 				break;
 			}
@@ -149,13 +144,29 @@ void IARCMission::dji_local_pos_callback(const dji_sdk::LocalPositionConstPtr& m
 	localPosNED.z = msg->z;
 }
 
-void IARCMission::flight_ctrl_dst_callback(const geometry_msgs::Point32ConstPtr& msg)
+bool IARCMission::mission_takeoff()
 {
-	flight_ctrl_dst.x = msg->x;
-	flight_ctrl_dst.y = msg->y;
-	flight_ctrl_dst.z = msg->z;
+	CDJIDrone->drone_arm();
+	while((ros::ok()) && (localPosNED.z<1.7))
+	{
+		ros::spinOnce();
+		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, 0);
+		usleep(20000);
+		ROS_INFO("takeoff stage1, position.z = %6.3f",localPosNED.z);
+	}
+	return true;
 }
 
+bool IARCMission::mission_land()
+{
+	for(int i = 0; i < 100; i ++) 
+	{
+		CDJIDrone->attitude_control(0x80, 0, 0, -0.3, 0);
+		usleep(20000);
+		ROS_INFO("landing sleep");
+	}
+	return true;
+}
 
 
 

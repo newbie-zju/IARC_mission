@@ -33,6 +33,9 @@ public:
 	void irobot_pos_callback(const goal_detected::Pose3DConstPtr &msg);
 	void dji_local_pos_callback(const dji_sdk::LocalPositionConstPtr &msg);
 	void flight_ctrl_dst_callback(const geometry_msgs::Point32ConstPtr &msg);
+	
+	bool mission_takeoff();
+	bool mission_land();
 };
 
 };
