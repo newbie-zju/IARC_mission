@@ -64,7 +64,6 @@
     <!-- Proc -->
     <node if="$(arg proc)"
         pkg="image_proc" type="image_proc" name="image_proc" ns="$(arg camera)">
-	
     </node>
 
     <!-- View -->
@@ -95,5 +94,8 @@
     <node if="$(arg trajectorygenerator)" 
 	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
     </node>
-
+	
+	<node pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" output="screen"/>
+	<node pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen"/>
+	<!--node pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen"/-->
 </launch>
