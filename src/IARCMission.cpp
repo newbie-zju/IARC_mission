@@ -1,11 +1,14 @@
 #include <ros/ros.h>
 #include <IARCMission.h>
-
+#include <math.h>
 using namespace std;
 //using namespace DJI::onboardSDK;
 namespace mission{
-IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
+IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
+	double yaw_origin_;
+	if(!nh_param.getParam("yaw_origin",yaw_origin_))yaw_origin_ = 0.0;
+	yaw_origin = (float)yaw_origin_*180.0/M_PI;
 	irobot_pos_sub = nh_.subscribe("/goal_detected/goal_pose", 10, &IARCMission::irobot_pos_callback, this);
 	dji_local_pos_sub = nh_.subscribe("/dji_sdk/local_position", 10, &IARCMission::dji_local_pos_callback, this);
 	TG_client = nh_.serviceClient<iarc_mission::TG>("/TG/TG_service");
@@ -19,7 +22,6 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 			case 27:	//enter space to start mission
 			{
 				CDJIDrone->request_sdk_permission_control();
-				//CDJIDrone->takeoff();
 				mission_takeoff();
 // 				sleep(3);	//waiting for quadrotor to arrive 1.2m
 // 				for(int i = 0; i != 500;i++)
@@ -32,7 +34,6 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 				while(ros::ok())
 				{
 					ros::spinOnce();
-					//ROS_INFO("HAHAA");
 					if(irobotPosNED.flag > 0)	//has irobot
 					{
 						ROS_INFO("has irobot");
@@ -55,7 +56,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 							if(!TG_client.call(TG_srv))
 								ROS_INFO("IARCMission TG_client.call failled......");
 							else
-								CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);	//TODO: YAW = 0?
+								CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);	//TODO: YAW = 0?
 						}
 						else	//irobot is going forward to white/red borders, than APPROACH! 
 						{
@@ -73,22 +74,14 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 								if(!TG_client.call(TG_srv))
 									ROS_INFO("IARCMission TG_client.call failled......");
 								else
-									CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);	//TODO: YAW = 0?
+									CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);	//TODO: YAW = 0?
 								if(localPosNED.z < 0.2)	//TODO: Z!!??  accumulated error in z axis!!
 								{
 									ROS_INFO("going to land...");
-									//CDJIDrone->attitude_control(0x80, 0, 0, -0.3, 0);//0x80:xy position control, x = deltax,y=deltay,z:velocity control,if land:z=-0.3,if take off:z=0.8
 									mission_land();
 									gotoApproach = false;
 									CDJIDrone->request_sdk_permission_control();
-									//CDJIDrone->attitude_control(0x80, 0, 0, 0.8, 0);
 									mission_takeoff();
-//									ROS_INFO("going to takeoff...");
-// 									for(int i = 0; i != 150;i++)
-// 									{
-// 										CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, 0);	//TODO: YAW!!!
-// 										usleep(20000);
-// 									}
 									break;
 								}
 								
@@ -109,9 +102,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh)
 						}
 						else
 						{	//TODO: DONOT implement CRUISE MODE temporarily
-							//CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);	//TODO: YAW = 0?
-							CDJIDrone->attitude_control(0x50, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, 0);
-							ROS_INFO("vx = %f vy = %f z = %f ",TG_srv.response.flightCtrlDstx,TG_srv.response.flightCtrlDsty,TG_srv.response.flightCtrlDstz );
+							CDJIDrone->attitude_control(0x50, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 						}
 					}
 					loop_rate.sleep();
@@ -150,9 +141,8 @@ bool IARCMission::mission_takeoff()
 	while((ros::ok()) && (localPosNED.z<1.7))
 	{
 		ros::spinOnce();
-		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, 0);
+		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, yaw_origin);
 		usleep(20000);
-		ROS_INFO("takeoff stage1, position.z = %6.3f",localPosNED.z);
 	}
 	return true;
 }
@@ -161,7 +151,7 @@ bool IARCMission::mission_land()
 {
 	for(int i = 0; i < 100; i ++) 
 	{
-		CDJIDrone->attitude_control(0x80, 0, 0, -0.3, 0);
+		CDJIDrone->attitude_control(0x80, 0, 0, -0.3, yaw_origin);
 		usleep(20000);
 		ROS_INFO("landing sleep");
 	}

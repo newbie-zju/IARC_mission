@@ -3,7 +3,6 @@
     <!-- Common Interface -->
     <arg name="device" default="26804026"/>
     <arg name="rate" default="20"/>
-
     <!-- Camera Settings -->
     <arg name="serial" default="$(arg device)"/>
     <arg name="camera_name" default="mv_$(arg serial)"/>
@@ -11,7 +10,6 @@
     <arg name="frame_id" default="$(arg camera)"/>
     <arg name="calib_url" default="file://${ROS_HOME}/camera_info/$(arg camera_name).yaml"/>
     <arg name="fps" default="$(arg rate)"/>
-
     <arg name="idpf" default="0"/>
     <arg name="aec" default="false"/>
     <arg name="expose_us" default="70000"/>
@@ -25,21 +23,19 @@
     <arg name="request" default="0"/>
     <arg name="mm" default="0"/>
     <arg name="jpeg_quality" default="80"/>
-
     <!-- Node Settings -->
+	<arg name="yaw_origin_" default="1.5"/>
     <arg name="output" default="screen"/>
     <arg name="proc" default="true"/>
-    <arg name="view" default="false"/>
-    <arg name="calib" default="false"/>
     <arg name="goalDetected" default="true"/>
     <arg name="trajectorygenerator" default="true"/>
 
     <!-- Node -->
     <include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
 	<node pkg="iarc_mission" type="iarc_mission_node" name="iarc_mission_node" output="screen">
+		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 	</node>
-
-
+	
     <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)">
         <param name="identifier" type="string" value="$(arg serial)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
@@ -66,36 +62,20 @@
         pkg="image_proc" type="image_proc" name="image_proc" ns="$(arg camera)">
     </node>
 
-    <!-- View -->
-    <arg name="image" default="image_rect_color"/>
-    <node if="$(arg view)"
-        pkg="image_view" type="image_view" name="viewer" ns="$(arg camera)"
-        args="image:=$(arg image)" output="$(arg output)">
-    </node>
-
-    <!-- Calib -->
-    <group if="$(arg calib)">
-        <arg name="pattern" default="chessboard"/>
-        <arg name="size"/>
-        <arg name="square"/>
-        <arg name="num_dist_coeff" default="2"/>
-        <node pkg="camera_calibration" type="cameracalibrator.py"
-            name="calibrator" output="screen"
-            args="-p $(arg pattern) -s $(arg size) -q $(arg square)
-            -k $(arg num_dist_coeff)
-            image:=/$(arg camera)/image_raw camera:=/$(arg camera)">
-        </node>
-    </group>
 
     <node if="$(arg goalDetected)" 
-	pkg="goal_detected" type="goal_detected" name="goal_detected" output="screen">
+	pkg="goal_detected" type="goal_detected" name="goal_detected">
     </node>
 
     <node if="$(arg trajectorygenerator)" 
 	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
     </node>
 	
-	<node pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" output="screen"/>
-	<node pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen"/>
-	<!--node pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen"/-->
+	<!--node pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" output="screen"/-->
+	<node pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
+		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
+	</node>
+	<node pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
+		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
+	</node>
 </launch>

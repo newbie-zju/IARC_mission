@@ -16,6 +16,7 @@ class IARCMission
 {
 public:
 	ros::NodeHandle nh_;
+	ros::NodeHandle nh_param;
 	ros::Subscriber irobot_pos_sub;	//target position from computer vision (package = goal_detected)
 	ros::Subscriber dji_local_pos_sub;	//local position of DJI in NED fram (package = dji_sdk)
 	ros::Subscriber flight_ctrl_dst_sub;
@@ -27,7 +28,7 @@ public:
 	DPstate mission_state;
 	std_msgs::Int8 mission_state_msg;
 	DJIDrone *CDJIDrone;
-	
+	float yaw_origin;
 	IARCMission(ros::NodeHandle nh);
 	~IARCMission();
 	void irobot_pos_callback(const goal_detected::Pose3DConstPtr &msg);
