@@ -2,10 +2,12 @@
 #define IARCMISSION_H
 #include <ros/ros.h>
 #include <std_msgs/Int8.h>
+#include <std_msgs/Bool.h>
 #include <iostream>
 #include <dji_sdk/LocalPosition.h>
 #include <goal_detected/Pose3D.h>
 #include <geometry_msgs/Point32.h>
+#include <geometry_msgs/Point.h>
 #include <dji_sdk/dji_drone.h>
 #include <iarc_mission/TG.h>
 #include "unistd.h"
@@ -20,23 +22,40 @@ public:
 	ros::Subscriber irobot_pos_sub;	//target position from computer vision (package = goal_detected)
 	ros::Subscriber dji_local_pos_sub;	//local position of DJI in NED fram (package = dji_sdk)
 	ros::Subscriber flight_ctrl_dst_sub;
-	//ros::Publisher mission_state_pub;	//mision state of quadrotor, publish to trajectory generator (mission state: CRUISE, TRACK, APPROACH)
+	ros::Subscriber obstacleAvoidance_sub;
+	ros::Subscriber boundaryDetect_sub;
 	ros::ServiceClient TG_client;
+	
 	goal_detected::Pose3D irobotPosNED;
 	dji_sdk::LocalPosition localPosNED;
 	geometry_msgs::Point32 flight_ctrl_dst;
-	DPstate mission_state;
 	std_msgs::Int8 mission_state_msg;
+	
 	DJIDrone *CDJIDrone;
+	
+	bool obstacleEmergency;
+	bool boundaryEmergency;	
 	float yaw_origin;
+	int quadState;
+	
 	IARCMission(ros::NodeHandle nh);
 	~IARCMission();
+	void initialize();
 	void irobot_pos_callback(const goal_detected::Pose3DConstPtr &msg);
 	void dji_local_pos_callback(const dji_sdk::LocalPositionConstPtr &msg);
-	void flight_ctrl_dst_callback(const geometry_msgs::Point32ConstPtr &msg);
-	
+	void obstacleAvoidance_callback(const std_msgs::Bool msg);
+	void boundaryDetect_callback(const geometry_msgs::PointConstPtr &msg);
 	bool mission_takeoff();
 	bool mission_land();
+	int stateMachine();
+	bool irobotSafe(double theta);
+	void missionCruise();
+	void missionTrack();
+	void missionApproach();
+	bool gotoCruise();
+	bool gotoTrack();
+	bool gotoApproach();
+	float getLength2f(float x, float y);
 };
 
 };
