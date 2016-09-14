@@ -24,11 +24,14 @@
     <arg name="mm" default="0"/>
     <arg name="jpeg_quality" default="80"/>
     <!-- Node Settings -->
-	<arg name="yaw_origin_" default="1.5"/>
+	<arg name="yaw_origin_" default="0.0"/>
     <arg name="output" default="screen"/>
-    <arg name="proc" default="true"/>
-    <arg name="goalDetected" default="true"/>
+	<arg name="bluefox" default="false"/>
+    <arg name="proc" default="false"/>
+    <arg name="goalDetected" default="false"/>
     <arg name="trajectorygenerator" default="true"/>
+	<arg name="obstacle_avoidance" default="true"/>
+	<arg name="iarc_tf" default="true"/>
 
     <!-- Node -->
     <include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
@@ -36,7 +39,8 @@
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 	</node>
 	
-    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)">
+    <node if="$(arg bluefox)"
+		pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)">
         <param name="identifier" type="string" value="$(arg serial)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="camera_name" type="string" value="$(arg camera_name)"/>
@@ -69,13 +73,24 @@
 
     <node if="$(arg trajectorygenerator)" 
 	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
+		<param name="Kr" type="double" value="2.25"/>
+		<param name="fattractive" type="double" value="2.0"/>
     </node>
 	
 	<!--node pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" output="screen"/-->
-	<node pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
+	<node if="$(arg iarc_tf)"
+		pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
+		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
+		<param name="sta_x" type="double" value="0.0"/>
+		<param name="sta_y" type="double" value="0.0"/>
+	</node>
+	<node if="$(arg iarc_tf)"
+		pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 	</node>
-	<node pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
-		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
+	<node if="$(arg obstacle_avoidance)" 
+		pkg="obstacle_avoidance" type="obstacleAvoidance_node" name="obstacleAvoidance_node" output="screen">
+		<param name="Object_N" type="double" value="3.5"/>
+		<param name="Object_E" type="double" value="15.0"/>
 	</node>
 </launch>

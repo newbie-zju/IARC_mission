@@ -112,6 +112,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
 	initialize();
+	CDJIDrone->request_sdk_permission_control();
 	mission_takeoff();
 	quadState = CRUISE;
 	ros::Rate loop_rate(50);
@@ -136,6 +137,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 				break;
 			}
 		}
+		loop_rate.sleep();
 	}
 
 }
@@ -175,7 +177,6 @@ void IARCMission::obstacleAvoidance_callback(const std_msgs::Bool msg)
 // functions
 bool IARCMission::mission_takeoff()
 {
-	CDJIDrone->request_sdk_permission_control();
 	CDJIDrone->drone_arm();
 	while((ros::ok()) && (localPosNED.z<1.7))
 	{
@@ -214,6 +215,8 @@ void IARCMission::initialize()
 
 bool IARCMission::irobotSafe(double theta)
 {
+	//bool ret = ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));
+	//ROS_INFO("irobotSafe: theta=%4.2lf,return=%d",theta,(int)ret);
 	return ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
 }
 
@@ -229,23 +232,47 @@ int IARCMission::stateMachine()
 		}
 		case CRUISE:
 		{
-			if(gotoCruise()){quadState = CRUISE;break;}
-			if(gotoTrack()){quadState = TRACK;break;}
+			if(gotoCruise())
+			{
+				ROS_INFO_THROTTLE(0.2,"CRUISE->CRUISE");
+				quadState = CRUISE;
+				break;
+			}
+			if(gotoTrack())
+			{
+				ROS_INFO_THROTTLE(0.2,"CRUISE->TRACK");
+				quadState = TRACK;
+				break;
+			}
 			break;
 		}
 		case TRACK:
 		{
-			if(gotoCruise()){quadState = CRUISE;break;}
-			if(gotoApproach()){quadState = APPROACH;break;}	// ATTENTION: to determin whether to APPROACH before TRACK
-			if(gotoTrack()){quadState = TRACK;break;}
+			if(gotoCruise())
+			{
+				ROS_INFO_THROTTLE(0.2,"TRACK->CRUISE");
+				quadState = CRUISE;
+				break;
+			}
+			if(gotoApproach())
+			{
+				ROS_INFO_THROTTLE(0.2,"TRACK->APPROACH");
+				quadState = APPROACH;
+				break;
+			}	// ATTENTION: to determin whether to APPROACH before TRACK
+			if(gotoTrack())
+			{
+				ROS_INFO_THROTTLE(0.2,"TRACK->TRACK");
+				quadState = TRACK;
+				break;
+			}
 			break;
 		}
 		case APPROACH:
 		{
-			
+			ROS_INFO_THROTTLE(0.2,"APPROACH->");
 			break;
 		}
-		
 	}
 }
 
@@ -260,9 +287,14 @@ void IARCMission::missionCruise()
 	TG_srv.request.theta = 0.0;
 	TG_srv.request.cruiseStep = 0;
 	if(!TG_client.call(TG_srv))
-		ROS_INFO("IARCMission TG_client.call failled......");
+		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
 	else
-		CDJIDrone->attitude_control(0x50, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+	{
+		if((uint8_t)0x90 == TG_srv.response.flightFlag)
+			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		if((uint8_t)0x50 == TG_srv.response.flightFlag)
+			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+	}
 }
 
 void IARCMission::missionTrack()
@@ -276,9 +308,14 @@ void IARCMission::missionTrack()
 	TG_srv.request.theta = irobotPosNED.theta;
 	TG_srv.request.cruiseStep = 0;
 	if(!TG_client.call(TG_srv))
-		ROS_INFO("IARCMission TG_client.call failled......");
+		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
 	else
-		CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);	//TODO: YAW = 0?
+	{
+		if((uint8_t)0x90 == TG_srv.response.flightFlag)
+			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		if((uint8_t)0x50 == TG_srv.response.flightFlag)
+			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+	}
 }
 
 void IARCMission::missionApproach()
@@ -298,25 +335,32 @@ void IARCMission::missionApproach()
 		if(!TG_client.call(TG_srv))
 			ROS_INFO("IARCMission TG_client.call failled......");
 		else
-			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);	//TODO: YAW = 0?
+		{
+			ROS_INFO_THROTTLE(0.3, "mission_APP:%d,%3.1f,%3.1f,%3.1f",TG_srv.response.flightFlag,TG_srv.response.flightCtrlDstx,TG_srv.response.flightCtrlDsty,TG_srv.response.flightCtrlDstz);
+			if((uint8_t)0x90 == TG_srv.response.flightFlag)
+				CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+			if((uint8_t)0x50 == TG_srv.response.flightFlag)
+				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		}
 		if(localPosNED.z < 0.2)	//TODO: Z!!??  accumulated error in z axis!!
 		{
 			ROS_INFO("going to land...");
 			mission_land();
 			gotoApproach = false;
-			CDJIDrone->request_sdk_permission_control();
+			//CDJIDrone->request_sdk_permission_control();
 			mission_takeoff();
 			break;
 		}
 	}
+	quadState = CRUISE;
 }
 
 bool IARCMission::gotoCruise()
 {
 	if(quadState == CRUISE)
-		return (!(irobotPosNED.flag>0) || (irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta)));
+		return (!(irobotPosNED.flag>0) || ((irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta))));
 	if(quadState == TRACK)
-		return (!(irobotPosNED.flag>0) || (irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta)));	//TODO: not consider loosing irobot while tarcking
+		return (!(irobotPosNED.flag>0) || ((irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta))));	//TODO: not consider loosing irobot while tarcking
 	else return false;
 }
 

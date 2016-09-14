@@ -11,3 +11,4 @@ int8 cruiseStep
 float32 flightCtrlDstx
 float32 flightCtrlDsty
 float32 flightCtrlDstz
+uint8 flightFlag
