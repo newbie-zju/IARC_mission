@@ -114,6 +114,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 	initialize();
 	CDJIDrone->request_sdk_permission_control();
 	mission_takeoff();
+	//CDJIDrone->takeoff();
 	quadState = CRUISE;
 	ros::Rate loop_rate(50);
 	while(ros::ok())
@@ -177,14 +178,29 @@ void IARCMission::obstacleAvoidance_callback(const std_msgs::Bool msg)
 // functions
 bool IARCMission::mission_takeoff()
 {
+/*
 	CDJIDrone->drone_arm();
+	//CDJIDrone->takeoff();
 	while((ros::ok()) && (localPosNED.z<1.7))
 	{
 		ros::spinOnce();
+		ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
 		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, yaw_origin);
 		ROS_INFO_THROTTLE(1,"taking off...");
 		usleep(20000);
 	}
+*/
+
+	ROS_ERROR("taking off stage 1");
+	CDJIDrone->takeoff();
+	for(int i = 0; i < 500; i ++) 
+	{
+		ros::spinOnce();
+		ROS_INFO_THROTTLE(0.3,"taking off stage 2");
+		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, yaw_origin );
+		usleep(20000);
+	}
+
 	return true;
 }
 

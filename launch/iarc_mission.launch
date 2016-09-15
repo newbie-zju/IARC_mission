@@ -24,7 +24,7 @@
     <arg name="mm" default="0"/>
     <arg name="jpeg_quality" default="80"/>
     <!-- Node Settings -->
-	<arg name="yaw_origin_" default="0.0"/>
+	<arg name="yaw_origin_" default="-2.7"/>
     <arg name="output" default="screen"/>
 	<arg name="bluefox" default="false"/>
     <arg name="proc" default="false"/>
@@ -35,6 +35,7 @@
 
     <!-- Node -->
     <include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
+	<include file="$(find hokuyo_node)/hokuyo.launch"/>
 	<node pkg="iarc_mission" type="iarc_mission_node" name="iarc_mission_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 	</node>
@@ -74,15 +75,15 @@
     <node if="$(arg trajectorygenerator)" 
 	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
 		<param name="Kr" type="double" value="2.25"/>
-		<param name="fattractive" type="double" value="2.0"/>
+		<param name="fattractive" type="double" value="1.0"/>
     </node>
 	
 	<!--node pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" output="screen"/-->
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
-		<param name="sta_x" type="double" value="0.0"/>
-		<param name="sta_y" type="double" value="0.0"/>
+		<param name="sta_x" type="double" value="2.5"/>
+		<param name="sta_y" type="double" value="2.5"/>
 	</node>
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
