@@ -113,8 +113,15 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
 	initialize();
 	CDJIDrone->request_sdk_permission_control();
-	mission_takeoff();
-	//CDJIDrone->takeoff();
+	//mission_takeoff();
+	CDJIDrone->takeoff();
+	for(int i = 0; i < 300; i ++) 
+	{
+		ros::spinOnce();
+		ROS_INFO_THROTTLE(0.3,"taking off stage 2");
+		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, yaw_origin );
+		usleep(20000);
+	}
 	quadState = CRUISE;
 	ros::Rate loop_rate(50);
 	while(ros::ok())
@@ -178,9 +185,8 @@ void IARCMission::obstacleAvoidance_callback(const std_msgs::Bool msg)
 // functions
 bool IARCMission::mission_takeoff()
 {
-/*
+
 	CDJIDrone->drone_arm();
-	//CDJIDrone->takeoff();
 	while((ros::ok()) && (localPosNED.z<1.7))
 	{
 		ros::spinOnce();
@@ -189,9 +195,7 @@ bool IARCMission::mission_takeoff()
 		ROS_INFO_THROTTLE(1,"taking off...");
 		usleep(20000);
 	}
-*/
-
-	ROS_ERROR("taking off stage 1");
+/*
 	CDJIDrone->takeoff();
 	for(int i = 0; i < 500; i ++) 
 	{
@@ -200,7 +204,7 @@ bool IARCMission::mission_takeoff()
 		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, yaw_origin );
 		usleep(20000);
 	}
-
+*/
 	return true;
 }
 
@@ -308,7 +312,7 @@ void IARCMission::missionCruise()
 	{
 		if((uint8_t)0x90 == TG_srv.response.flightFlag)
 			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
-		if((uint8_t)0x50 == TG_srv.response.flightFlag)
+		if((uint8_t)0x40 == TG_srv.response.flightFlag)
 			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 	}
 }
