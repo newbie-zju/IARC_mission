@@ -23,7 +23,7 @@
 	<include file="$(find hokuyo_node)/hokuyo.launch"/>
 	
 	<!-- iarc_mission -->
-	<node pkg="iarc_mission" type="iarc_mission_node" name="iarc_mission_node" >
+	<node pkg="iarc_mission" type="iarc_mission_node" name="iarc_mission_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 	</node>
 	
@@ -33,12 +33,12 @@
    
 	<!-- goalDetected -->
     <node if="$(arg goalDetected)" 
-	pkg="goal_detected" type="goal_detected" name="goal_detected">
+	pkg="goal_detected" type="goal_detected" name="goal_detected" output="screen">
     </node>
 
 	<!-- trajectory generator -->
     <node if="$(arg trajectorygenerator)" 
-	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator">
+	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
 		<param name="Kr" type="double" value="2.25"/>
 		<param name="fattractive" type="double" value="1.0"/>
     </node>

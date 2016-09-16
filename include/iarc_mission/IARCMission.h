@@ -2,6 +2,7 @@
 #define IARCMISSION_H
 #include <ros/ros.h>
 #include <std_msgs/Int8.h>
+#include <ros/ros.h>
 #include <std_msgs/Bool.h>
 #include <iostream>
 #include <dji_sdk/LocalPosition.h>
@@ -11,7 +12,7 @@
 #include <dji_sdk/dji_drone.h>
 #include <iarc_mission/TG.h>
 #include "unistd.h"
-enum DPstate{FREE,CRUISE,TRACK,APPROACH};//飞行器状态：巡航、跟踪、接近
+enum DPstate_{FREE,CRUISE,TRACK,APPROACH};//飞行器状态：巡航、跟踪、接近
 #define PI 3.1415926
 namespace mission{
 class IARCMission
@@ -30,6 +31,9 @@ public:
 	dji_sdk::LocalPosition localPosNED;
 	geometry_msgs::Point32 flight_ctrl_dst;
 	std_msgs::Int8 mission_state_msg;
+	ros::Time free_time;
+	ros::Time free_time_prev;
+	ros::Duration freeTimer;
 	
 	DJIDrone *CDJIDrone;
 	
@@ -49,9 +53,11 @@ public:
 	bool mission_land();
 	int stateMachine();
 	bool irobotSafe(double theta);
+	void missionFree();
 	void missionCruise();
 	void missionTrack();
 	void missionApproach();
+	bool gotoFree();
 	bool gotoCruise();
 	bool gotoTrack();
 	bool gotoApproach();

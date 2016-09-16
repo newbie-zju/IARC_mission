@@ -1,4 +1,3 @@
-#include <ros/ros.h>
 #include <IARCMission.h>
 #include <math.h>
 using namespace std;
@@ -129,6 +128,11 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 		stateMachine();
 		switch(quadState)
 		{
+			case FREE:
+			{
+				missionFree();
+				break;
+			}
 			case CRUISE: 
 			{
 				missionCruise();
@@ -227,6 +231,8 @@ void IARCMission::initialize()
 	boundaryEmergency = false;
 	obstacleEmergency = false;
 	quadState = FREE;
+	free_time = ros::Time::now();
+	free_time_prev = free_time;
 	irobot_pos_sub = nh_.subscribe("/goal_detected/goal_pose", 10, &IARCMission::irobot_pos_callback, this);
 	dji_local_pos_sub = nh_.subscribe("/dji_sdk/local_position", 10, &IARCMission::dji_local_pos_callback, this);
 	TG_client = nh_.serviceClient<iarc_mission::TG>("/TG/TG_service");
@@ -247,8 +253,24 @@ int IARCMission::stateMachine()
 	{
 		case FREE:
 		{
-			ROS_INFO_THROTTLE(1,"FREE...");
-			break;
+			if(gotoFree())
+			{
+				ROS_INFO_THROTTLE(0.2,"FREE->FREE");
+				quadState = FREE;
+				break;
+			}
+			if(gotoCruise())
+			{
+				ROS_INFO_THROTTLE(0.2, "FREE->CRUISE");
+				quadState = CRUISE;
+				break;
+			}
+			if(gotoTrack())
+			{
+				ROS_INFO_THROTTLE(0.2, "FREE->TRACK");
+				quadState = TRACK;
+				break;
+			}
 		}
 		case CRUISE:
 		{
@@ -268,6 +290,13 @@ int IARCMission::stateMachine()
 		}
 		case TRACK:
 		{
+			if(gotoFree())
+			{
+				ROS_INFO_THROTTLE(0.2, "TRACK->FREE");
+				quadState = FREE;
+				free_time_prev = ros::Time::now();
+				break;
+			}
 			if(gotoCruise())
 			{
 				ROS_INFO_THROTTLE(0.2,"TRACK->CRUISE");
@@ -310,9 +339,9 @@ void IARCMission::missionCruise()
 		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
 	else
 	{
-		if((uint8_t)0x90 == TG_srv.response.flightFlag)
-			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
-		if((uint8_t)0x40 == TG_srv.response.flightFlag)
+// 		if((uint8_t)0x90 == TG_srv.response.flightFlag)
+// 			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+// 		if((uint8_t)0x40 == TG_srv.response.flightFlag)
 			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 	}
 }
@@ -331,9 +360,9 @@ void IARCMission::missionTrack()
 		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
 	else
 	{
-		if((uint8_t)0x90 == TG_srv.response.flightFlag)
-			CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
-		if((uint8_t)0x50 == TG_srv.response.flightFlag)
+		if((uint8_t)0x80 == TG_srv.response.flightFlag)
+			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		if((uint8_t)0x40 == TG_srv.response.flightFlag)
 			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 	}
 }
@@ -372,8 +401,41 @@ void IARCMission::missionApproach()
 			break;
 		}
 	}
-	quadState = CRUISE;
+	quadState = FREE;
+	free_time_prev = ros::Time::now();
 }
+
+void IARCMission::missionFree()
+{
+	free_time = ros::Time::now();
+	freeTimer = free_time - free_time_prev;
+	iarc_mission::TG TG_srv;
+	TG_srv.request.quadrotorState = FREE;
+	TG_srv.request.irobotPosNEDx = 0.0;
+	TG_srv.request.irobotPosNEDy = 0.0;
+	TG_srv.request.irobotPosNEDz = 0.0;
+	TG_srv.request.theta = irobotPosNED.theta;
+	TG_srv.request.cruiseStep = 0;
+	if(!TG_client.call(TG_srv))
+		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
+	else
+	{
+		if((uint8_t)0x80 == TG_srv.response.flightFlag)
+			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		if((uint8_t)0x40 == TG_srv.response.flightFlag)
+			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+	}
+}
+
+
+bool mission::IARCMission::gotoFree()
+{
+	if(quadState == FREE)
+		return ((freeTimer.toSec() < 1.0) && (irobotPosNED.flag == 0));
+	if(quadState == TRACK)
+		return (!(irobotPosNED.flag>0) || ((irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta))));
+}
+
 
 bool IARCMission::gotoCruise()
 {
