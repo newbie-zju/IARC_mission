@@ -112,15 +112,15 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
 	initialize();
 	CDJIDrone->request_sdk_permission_control();
-	//mission_takeoff();
-	CDJIDrone->takeoff();
-	for(int i = 0; i < 300; i ++) 
-	{
-		ros::spinOnce();
-		ROS_INFO_THROTTLE(0.3,"taking off stage 2");
-		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, yaw_origin );
-		usleep(20000);
-	}
+	mission_takeoff();
+	//CDJIDrone->takeoff();
+	//for(int i = 0; i < 300; i ++) 
+	//{
+	//	ros::spinOnce();
+	//	ROS_INFO_THROTTLE(0.3,"taking off stage 2");
+	//	CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, yaw_origin );
+	//	usleep(20000);
+	//}
 	quadState = CRUISE;
 	ros::Rate loop_rate(50);
 	while(ros::ok())
@@ -189,26 +189,26 @@ void IARCMission::obstacleAvoidance_callback(const std_msgs::Bool msg)
 // functions
 bool IARCMission::mission_takeoff()
 {
-
+	/*ros::spinOnce();
 	CDJIDrone->drone_arm();
-	while((ros::ok()) && (localPosNED.z<1.7))
+	while((ros::ok()) && (localPosNED.z<1.2))
 	{
 		ros::spinOnce();
 		ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
 		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, yaw_origin);
 		ROS_INFO_THROTTLE(1,"taking off...");
 		usleep(20000);
-	}
-/*
+	}*/
+
 	CDJIDrone->takeoff();
 	for(int i = 0; i < 500; i ++) 
 	{
 		ros::spinOnce();
 		ROS_INFO_THROTTLE(0.3,"taking off stage 2");
-		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.8, yaw_origin );
+		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.6, yaw_origin );
 		usleep(20000);
 	}
-*/
+
 	return true;
 }
 
@@ -216,7 +216,7 @@ bool IARCMission::mission_land()
 {
 	for(int i = 0; i < 100; i ++) 
 	{
-		CDJIDrone->attitude_control(0x80, 0, 0, -0.3, yaw_origin);
+		CDJIDrone->attitude_control(0x40, 0, 0, -0.3, yaw_origin);
 		ROS_INFO_THROTTLE(1,"landing...");
 		usleep(20000);
 	}
@@ -253,6 +253,7 @@ int IARCMission::stateMachine()
 	{
 		case FREE:
 		{
+			//ROS_ERROR("SM: FREE");
 			if(gotoFree())
 			{
 				ROS_INFO_THROTTLE(0.2,"FREE->FREE");
@@ -271,9 +272,11 @@ int IARCMission::stateMachine()
 				quadState = TRACK;
 				break;
 			}
+			break;
 		}
 		case CRUISE:
 		{
+			//ROS_ERROR("SM: CRUISE");
 			if(gotoCruise())
 			{
 				ROS_INFO_THROTTLE(0.2,"CRUISE->CRUISE");
@@ -290,10 +293,12 @@ int IARCMission::stateMachine()
 		}
 		case TRACK:
 		{
+			//ROS_ERROR("SM: TRACK");
 			if(gotoFree())
 			{
 				ROS_INFO_THROTTLE(0.2, "TRACK->FREE");
 				quadState = FREE;
+				free_time = ros::Time::now();
 				free_time_prev = ros::Time::now();
 				break;
 			}
@@ -402,13 +407,16 @@ void IARCMission::missionApproach()
 		}
 	}
 	quadState = FREE;
+	free_time = ros::Time::now();
 	free_time_prev = ros::Time::now();
+	
 }
 
 void IARCMission::missionFree()
 {
 	free_time = ros::Time::now();
 	freeTimer = free_time - free_time_prev;
+	ROS_ERROR_THROTTLE(0.2,"missionFree: freeTimer = %4.2f",(float)freeTimer.toSec());
 	iarc_mission::TG TG_srv;
 	TG_srv.request.quadrotorState = FREE;
 	TG_srv.request.irobotPosNEDx = 0.0;
@@ -431,7 +439,11 @@ void IARCMission::missionFree()
 bool mission::IARCMission::gotoFree()
 {
 	if(quadState == FREE)
-		return ((freeTimer.toSec() < 1.0) && (irobotPosNED.flag == 0));
+	{
+		bool ret =  ((!((float)freeTimer.toSec() > 1.0)) && !gotoTrack());
+		ROS_INFO_THROTTLE(0.2,"gotoFree: freeTimer=%4.2f,ret=%d",(float)freeTimer.toSec(),(int)ret);
+		return ret;
+	}
 	if(quadState == TRACK)
 		return (!(irobotPosNED.flag>0) || ((irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta))));
 }
@@ -439,6 +451,8 @@ bool mission::IARCMission::gotoFree()
 
 bool IARCMission::gotoCruise()
 {
+	if(quadState == FREE)
+		return (((float)freeTimer.toSec() > 1.0) && !gotoTrack());
 	if(quadState == CRUISE)
 		return (!(irobotPosNED.flag>0) || ((irobotPosNED.flag>0)&&(irobotSafe(irobotPosNED.theta))));
 	if(quadState == TRACK)
@@ -448,6 +462,11 @@ bool IARCMission::gotoCruise()
 
 bool IARCMission::gotoTrack()
 {
+	if(quadState == FREE)
+	{
+		//ROS_INFO("gotoTrack");
+		return (irobotPosNED.flag>0)&&(!irobotSafe(irobotPosNED.theta));
+	}
 	if(quadState == CRUISE)
 		return (irobotPosNED.flag>0)&&(!irobotSafe(irobotPosNED.theta));	//TODO:only if irobot is not safe,then goto track?
 	if(quadState == TRACK)

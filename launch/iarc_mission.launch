@@ -6,7 +6,7 @@
     <!-- Camera Settings -->
  
     <!-- Node Settings -->
-	<arg name="yaw_origin_" default="-2.7"/>
+	<arg name="yaw_origin_" default="2.2"/>
     <arg name="output" default="screen"/>
 	<arg name="bluefox" default="true"/>
     <arg name="proc" default="true"/>
@@ -45,7 +45,7 @@
 	
 	<!-- boundaty detect -->
 	<node if="$(arg boundary_detect)"
-		pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" output="screen"/>
+		pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" />
 
 	<!-- iarc_tf -->
 	<node if="$(arg iarc_tf)"
