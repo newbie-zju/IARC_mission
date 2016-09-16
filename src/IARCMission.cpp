@@ -186,43 +186,6 @@ void IARCMission::obstacleAvoidance_callback(const std_msgs::Bool msg)
 {}
 
 
-// functions
-bool IARCMission::mission_takeoff()
-{
-	/*ros::spinOnce();
-	CDJIDrone->drone_arm();
-	while((ros::ok()) && (localPosNED.z<1.2))
-	{
-		ros::spinOnce();
-		ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
-		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, yaw_origin);
-		ROS_INFO_THROTTLE(1,"taking off...");
-		usleep(20000);
-	}*/
-
-	CDJIDrone->takeoff();
-	for(int i = 0; i < 500; i ++) 
-	{
-		ros::spinOnce();
-		ROS_INFO_THROTTLE(0.3,"taking off stage 2");
-		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.6, yaw_origin );
-		usleep(20000);
-	}
-
-	return true;
-}
-
-bool IARCMission::mission_land()
-{
-	for(int i = 0; i < 100; i ++) 
-	{
-		CDJIDrone->attitude_control(0x40, 0, 0, -0.3, yaw_origin);
-		ROS_INFO_THROTTLE(1,"landing...");
-		usleep(20000);
-	}
-	return true;
-}
-
 void IARCMission::initialize()
 {
 	double yaw_origin_;
@@ -239,12 +202,6 @@ void IARCMission::initialize()
 	CDJIDrone = new DJIDrone(nh_);
 }
 
-bool IARCMission::irobotSafe(double theta)
-{
-	//bool ret = ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));
-	//ROS_INFO("irobotSafe: theta=%4.2lf,return=%d",theta,(int)ret);
-	return ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
-}
 
 int IARCMission::stateMachine()
 {
@@ -402,6 +359,7 @@ void IARCMission::missionApproach()
 			mission_land();
 			gotoApproach = false;
 			//CDJIDrone->request_sdk_permission_control();
+			sleep(10);
 			mission_takeoff();
 			break;
 		}
@@ -478,6 +436,52 @@ bool IARCMission::gotoApproach()
 {
 	if(getLength2f(localPosNED.x-irobotPosNED.x,localPosNED.y-irobotPosNED.y)<1.0) return true;
 	else return false;
+}
+
+bool IARCMission::irobotSafe(double theta)
+{
+	//bool ret = ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));
+	//ROS_INFO("irobotSafe: theta=%4.2lf,return=%d",theta,(int)ret);
+        return ((theta > yaw_origin*M_PI/180.0 - 0.5*M_PI)&&(theta < yaw_origin*M_PI/180.0 + 0.5*M_PI));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
+}
+
+bool IARCMission::mission_takeoff()
+{
+	/*ros::spinOnce();
+	CDJIDrone->drone_arm();
+	while((ros::ok()) && (localPosNED.z<1.2))
+	{
+		ros::spinOnce();
+		ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
+		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, yaw_origin);
+		ROS_INFO_THROTTLE(1,"taking off...");
+		usleep(20000);
+	}*/
+
+	CDJIDrone->takeoff();
+	for(int i = 0; i < 500; i ++) 
+	{
+		ros::spinOnce();
+		ROS_INFO_THROTTLE(0.3,"taking off stage 2");
+		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.6, yaw_origin );
+		usleep(20000);
+	}
+
+	return true;
+}
+
+bool IARCMission::mission_land()
+{
+/*
+	for(int i = 0; i < 100; i ++) 
+	{
+		CDJIDrone->attitude_control(0x40, 0, 0, -0.3, yaw_origin);
+		ROS_INFO_THROTTLE(1,"landing...");
+		usleep(20000);
+	}
+*/
+	CDJIDrone->landing();
+	return true;
 }
 
 float IARCMission::getLength2f(float x, float y)
