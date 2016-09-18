@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 	pose.flag = 1;
 	pose.theta = 0;
 	pose.x = 0.0;
-	pose.y = 3.0;
+	pose.y = 4.0;
 	pose.z = 0.0;
 	float vIrobot = 0.333;
 	localPosNED.x = 0.0;
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	cv::namedWindow("keyboardReader");
 	
 	while(ros::ok())
-	{
+	{/*
 		while(ros::ok() && pose.theta < 1.5)
 		{
 			ros::spinOnce();
@@ -72,6 +72,13 @@ int main(int argc, char** argv)
 			ROS_INFO("flag=%d, theta=%3.1lf, x=%3.1lf",pose.flag, pose.theta, pose.x);
 			//if(27 == c)pose.theta = -pose.theta;
 		}
+*/
+		pose.flag = 1;
+		pose.theta = M_PI/2.0;
+		pose.x = 2;
+		pose.y = 4;
+		pose.z = 0;
+		goal_pose_pub.publish(pose);
 	}
 	return 0;
 }

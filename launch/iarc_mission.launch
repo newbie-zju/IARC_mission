@@ -6,11 +6,11 @@
     <!-- Camera Settings -->
  
     <!-- Node Settings -->
-	<arg name="yaw_origin_" default="2.2"/>
+	<arg name="yaw_origin_" default="1.5707"/>
     <arg name="output" default="screen"/>
 	<arg name="bluefox" default="true"/>
     <arg name="proc" default="true"/>
-    <arg name="goalDetected" default="false"/>
+    <arg name="goalDetected" default="true"/>
     <arg name="trajectorygenerator" default="true"/>
 	<arg name="obstacle_avoidance" default="true"/>
 	<arg name="iarc_tf" default="true"/>
@@ -33,7 +33,7 @@
    
 	<!-- goalDetected -->
     <node if="$(arg goalDetected)" 
-	pkg="goal_detected" type="goal_detected" name="goal_detected" output="screen">
+	pkg="goal_detected" type="goal_detected" name="goal_detected">
     </node>
 
 	<!-- trajectory generator -->
@@ -45,14 +45,14 @@
 	
 	<!-- boundaty detect -->
 	<node if="$(arg boundary_detect)"
-		pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node" />
+		pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node"/>
 
 	<!-- iarc_tf -->
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
-		<param name="sta_x" type="double" value="2.5"/>
-		<param name="sta_y" type="double" value="2.5"/>
+		<param name="sta_x" type="double" value="2.0"/>
+		<param name="sta_y" type="double" value="2.0"/>
 	</node>
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">

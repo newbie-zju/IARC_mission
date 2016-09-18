@@ -318,14 +318,20 @@ void IARCMission::missionTrack()
 	TG_srv.request.irobotPosNEDz = irobotPosNED.z;
 	TG_srv.request.theta = irobotPosNED.theta;
 	TG_srv.request.cruiseStep = 0;
-	if(!TG_client.call(TG_srv))
-		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
-	else
+	while(ros::ok())
 	{
-		if((uint8_t)0x80 == TG_srv.response.flightFlag)
-			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
-		if((uint8_t)0x40 == TG_srv.response.flightFlag)
-			CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		if(!TG_client.call(TG_srv))
+			ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
+		else
+		{
+			if((uint8_t)0x80 == TG_srv.response.flightFlag)
+			{
+				if(getLength2f(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty) < 0.3)break;
+				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+			}
+			if((uint8_t)0x40 == TG_srv.response.flightFlag)
+				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		}
 	}
 }
 
@@ -442,7 +448,8 @@ bool IARCMission::irobotSafe(double theta)
 {
 	//bool ret = ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));
 	//ROS_INFO("irobotSafe: theta=%4.2lf,return=%d",theta,(int)ret);
-        return ((theta > yaw_origin*M_PI/180.0 - 0.5*M_PI)&&(theta < yaw_origin*M_PI/180.0 + 0.5*M_PI));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
+	//ROS_ERROR("%4.2f<theta(%4.2f)<%4.2f",yaw_origin*M_PI/180.0 - 0.5*M_PI,theta,yaw_origin*M_PI/180.0 + 0.5*M_PI);
+    return ((theta > yaw_origin*M_PI/180.0 - 0.5*M_PI+M_PI)&&(theta < yaw_origin*M_PI/180.0 + 0.5*M_PI+M_PI));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
 }
 
 bool IARCMission::mission_takeoff()
