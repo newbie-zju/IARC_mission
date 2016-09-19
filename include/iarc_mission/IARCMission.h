@@ -12,8 +12,10 @@
 #include <dji_sdk/dji_drone.h>
 #include <iarc_mission/TG.h>
 #include "unistd.h"
+#include <vector>
 enum DPstate_{FREE,CRUISE,TRACK,APPROACH};//飞行器状态：巡航、跟踪、接近
 #define PI 3.1415926
+using namespace std;
 namespace mission{
 class IARCMission
 {
@@ -26,8 +28,25 @@ public:
 	ros::Subscriber obstacleAvoidance_sub;
 	ros::Subscriber boundaryDetect_sub;
 	ros::ServiceClient TG_client;
-	
-	goal_detected::Pose3D irobotPosNED;
+	struct irobotPosNED_
+	{
+		double x;
+		double y;
+		double z;
+		double theta;
+		int8_t flag;
+	};
+	struct irobotsPosNEDWithReward_
+	{
+		vector<double> x;
+		vector<double> y;
+		vector<double> z;
+		vector<double> theta;
+		int8_t flag;
+		vector<double> reward;
+	};
+	irobotPosNED_ irobotPosNED;
+	irobotsPosNEDWithReward_ irobotsPosNEDWithReward;
 	dji_sdk::LocalPosition localPosNED;
 	geometry_msgs::Point32 flight_ctrl_dst;
 	std_msgs::Int8 mission_state_msg;
@@ -41,7 +60,12 @@ public:
 	bool boundaryEmergency;	
 	float yaw_origin;
 	int quadState;
-	
+	struct irobotPose
+	{
+		float x;
+		float y;
+		float theta;
+	};	
 	IARCMission(ros::NodeHandle nh);
 	~IARCMission();
 	void initialize();
@@ -62,6 +86,9 @@ public:
 	bool gotoTrack();
 	bool gotoApproach();
 	float getLength2f(float x, float y);
+	irobotPose predictIrobotPose(irobotPose irobotpose, float TPred, float TInLoop);
+	inline float limitAng(float theta);
+	void irobotReward();
 };
 
 };

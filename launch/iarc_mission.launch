@@ -1,58 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-    <!-- Common Interface -->
-    <arg name="device" default="26804026"/>
-    <arg name="rate" default="20"/>
-    <!-- Camera Settings -->
+	<!-- Common Interface -->
+	<arg name="device" default="26804026"/>
+	<arg name="rate" default="20"/>
+	<!-- Camera Settings -->
  
-    <!-- Node Settings -->
-	<arg name="yaw_origin_" default="1.5707"/>
-    <arg name="output" default="screen"/>
+	<!-- Node Settings -->
+	<arg name="yaw_origin_" default="-0.896655"/>
+	<arg name="xMax_" default="2.0"/>
+	<arg name="yMax_" default="6.0"/>
+	<arg name="output" default="screen"/>
 	<arg name="bluefox" default="true"/>
-    <arg name="proc" default="true"/>
-    <arg name="goalDetected" default="true"/>
-    <arg name="trajectorygenerator" default="true"/>
+	<arg name="proc" default="true"/>
+   	<arg name="goalDetected" default="false"/>
+	<arg name="trajectorygenerator" default="true"/>
 	<arg name="obstacle_avoidance" default="true"/>
 	<arg name="iarc_tf" default="true"/>
-	<arg name="boundary_detect" default="true"/>
-
-    <!-- sdk_manifold -->
-    <include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
+	<arg name="boundary_detect" default="false"/>
+	
+	<!-- sdk_manifold -->
+	<include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
 
 	<!-- hokuyo_node -->
 	<include file="$(find hokuyo_node)/hokuyo.launch"/>
-	
+
+	<!-- laser_detect -->
+	<include file="$(find laser_detect)/launch/laser_detect.launch"/>
+
 	<!-- iarc_mission -->
 	<node pkg="iarc_mission" type="iarc_mission_node" name="iarc_mission_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 	</node>
 	
 	<!-- bluefox -->
-        <include file="$(find bluefox2)/launch/single_node.launch"/>
+	<include file="$(find bluefox2)/launch/single_node.launch"/>
 
    
 	<!-- goalDetected -->
-    <node if="$(arg goalDetected)" 
-	pkg="goal_detected" type="goal_detected" name="goal_detected">
-    </node>
+    	<node if="$(arg goalDetected)" 
+		pkg="goal_detected" type="goal_detected" name="goal_detected" output="screen">
+    	</node>
 
 	<!-- trajectory generator -->
-    <node if="$(arg trajectorygenerator)" 
-	pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
-		<param name="Kr" type="double" value="2.25"/>
+    	<node if="$(arg trajectorygenerator)" 
+		pkg="trajectorygenerator" type="trajectorygenerator_node" name="trajectorygenerator" output="screen">
+		<param name="xMax" type="double" value="$(arg xMax_)"/>
+		<param name="yMax" type="double" value="$(arg yMax_)"/>
+		<param name="cruiseVel" type="double" value="0.5"/>
+		<param name="Kr" type="double" value="1.25"/>
 		<param name="fattractive" type="double" value="1.0"/>
-    </node>
+   	</node>
 	
 	<!-- boundaty detect -->
 	<node if="$(arg boundary_detect)"
-		pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node"/>
+		pkg="boundary_detect" type="boundaryDetect_node" name="boundaryDetect_node">
+		<param name="xMax" type="double" value="$(arg xMax_)"/>
+		<param name="yMax" type="double" value="$(arg yMax_)"/>
+	</node>
 
 	<!-- iarc_tf -->
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
-		<param name="sta_x" type="double" value="2.0"/>
-		<param name="sta_y" type="double" value="2.0"/>
+		<param name="sta_x" type="double" value="1.0"/>
+		<param name="sta_y" type="double" value="3.0"/>
 	</node>
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
@@ -62,7 +73,7 @@
 	<!-- obstacle avoidance -->
 	<node if="$(arg obstacle_avoidance)" 
 		pkg="obstacle_avoidance" type="obstacleAvoidance_node" name="obstacleAvoidance_node" output="screen">
-		<param name="Object_N" type="double" value="3.5"/>
-		<param name="Object_E" type="double" value="15.0"/>
+		<param name="Object_N" type="double" value="2.5"/>
+		<param name="Object_E" type="double" value="6.5"/>
 	</node>
 </launch>

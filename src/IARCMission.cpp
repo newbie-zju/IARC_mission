@@ -162,11 +162,37 @@ IARCMission::~IARCMission()
 // callbacks
 void IARCMission::irobot_pos_callback(const goal_detected::Pose3DConstPtr& msg)
 {
-	irobotPosNED.x = msg->x;
-	irobotPosNED.y = msg->y;
-	irobotPosNED.z = msg->z;
-	irobotPosNED.theta = msg->theta;
-	irobotPosNED.flag = msg->flag;
+	irobotsPosNEDWithReward.x.clear();
+	irobotsPosNEDWithReward.y.clear();
+	irobotsPosNEDWithReward.z.clear();
+	irobotsPosNEDWithReward.theta.clear();
+	irobotsPosNEDWithReward.flag = 0;
+	irobotsPosNEDWithReward.reward.clear();
+	for(int i = 0;i != msg->flag;i++)
+	{
+		irobotsPosNEDWithReward.x.push_back(msg->x[i]);
+		irobotsPosNEDWithReward.y.push_back(msg->y[i]);
+		irobotsPosNEDWithReward.z.push_back(msg->z[i]);
+		irobotsPosNEDWithReward.theta.push_back(msg->theta[i]);
+		irobotsPosNEDWithReward.flag = msg->flag;
+		irobotsPosNEDWithReward.reward.push_back(0.0);
+	}
+	irobotReward();		//calculate reward of each irobot
+	float minReward = 999.9;
+	int minRewardIndex = 999;
+	for(int i = 0;i != irobotsPosNEDWithReward.flag;i++)
+	{
+		if(irobotsPosNEDWithReward.reward[i] < minReward)	//find the irobot with the smallest reward, which meas forward to red line, and should to be track & approach
+		{
+			minReward = irobotsPosNEDWithReward.reward[i];
+			minRewardIndex = i;
+		}
+	}
+ 	irobotPosNED.x = irobotsPosNEDWithReward.x[minRewardIndex];
+	irobotPosNED.y = irobotsPosNEDWithReward.y[minRewardIndex];
+	irobotPosNED.z = irobotsPosNEDWithReward.z[minRewardIndex];
+	irobotPosNED.theta = irobotsPosNEDWithReward.theta[minRewardIndex];
+	irobotPosNED.flag = irobotsPosNEDWithReward.flag;
 }
 
 void IARCMission::dji_local_pos_callback(const dji_sdk::LocalPositionConstPtr& msg)
@@ -196,6 +222,17 @@ void IARCMission::initialize()
 	quadState = FREE;
 	free_time = ros::Time::now();
 	free_time_prev = free_time;
+	irobotPosNED.x = 0.0;
+	irobotPosNED.y = 0.0;
+	irobotPosNED.z = 0.0;
+	irobotPosNED.theta = 0.0;
+	irobotPosNED.flag = 0;
+	irobotsPosNEDWithReward.x.clear();
+	irobotsPosNEDWithReward.y.clear();
+	irobotsPosNEDWithReward.z.clear();
+	irobotsPosNEDWithReward.theta.clear();
+	irobotsPosNEDWithReward.flag = 0;
+	irobotsPosNEDWithReward.reward.clear();
 	irobot_pos_sub = nh_.subscribe("/goal_detected/goal_pose", 10, &IARCMission::irobot_pos_callback, this);
 	dji_local_pos_sub = nh_.subscribe("/dji_sdk/local_position", 10, &IARCMission::dji_local_pos_callback, this);
 	TG_client = nh_.serviceClient<iarc_mission::TG>("/TG/TG_service");
@@ -400,7 +437,7 @@ void IARCMission::missionFree()
 }
 
 
-bool mission::IARCMission::gotoFree()
+bool IARCMission::gotoFree()
 {
 	if(quadState == FREE)
 	{
@@ -446,11 +483,24 @@ bool IARCMission::gotoApproach()
 
 bool IARCMission::irobotSafe(double theta)
 {
-	//bool ret = ((theta > -0.5*M_PI)&&(theta < 0.5*M_PI));
-	//ROS_INFO("irobotSafe: theta=%4.2lf,return=%d",theta,(int)ret);
-	//ROS_ERROR("%4.2f<theta(%4.2f)<%4.2f",yaw_origin*M_PI/180.0 - 0.5*M_PI,theta,yaw_origin*M_PI/180.0 + 0.5*M_PI);
-    return ((theta > yaw_origin*M_PI/180.0 - 0.5*M_PI+M_PI)&&(theta < yaw_origin*M_PI/180.0 + 0.5*M_PI+M_PI));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
+						//			white												^  Gx theta = yaw_origin
+						//green					red				yaw_origin - 0.5*M_PI	|
+						//green					red								------	|------> Gy 
+						//			white												| 
+    return ((theta > limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI - 0.5*M_PI))&&(theta < limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI)));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
 }
+
+void IARCMission::irobotReward()
+{
+	//if theta is forward to red line, reward is small, should goto track and approach, should be selected
+	for(int i = 0;i != irobotsPosNEDWithReward.flag;i++)
+	{
+		float reward;
+		reward = fabs(limitAng(irobotsPosNEDWithReward.theta[i]) - limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI));
+		irobotsPosNEDWithReward.reward.push_back(reward);
+	}
+}
+
 
 bool IARCMission::mission_takeoff()
 {
@@ -497,6 +547,34 @@ float IARCMission::getLength2f(float x, float y)
 	return sqrt(x*x+y*y);
 }
 
+IARCMission::irobotPose IARCMission::predictIrobotPose(IARCMission::irobotPose irobotpose, float TPred, float TInLoop)
+{
+	float dT = 0.1;
+	IARCMission::irobotPose ret;
+	for(int i = 1;i < floor(TPred/dT);i++)
+	{
+		if(fmod(dT*i + TInLoop, 20)<2.0)
+		{
+			ret.x = irobotpose.x;
+			ret.y = irobotpose.y;
+			ret.theta = M_PI/2.0*dT + irobotpose.theta;
+		}
+		else
+		{
+			ret.x = irobotpose.x + 0.3333333*cos(irobotpose.theta)*dT;
+			ret.y = irobotpose.y + 0.3333333*sin(irobotpose.theta)*dT;
+			ret.theta = M_PI/2.0*dT + irobotpose.theta;			
+		}
+	}
+	return ret;
+}
+
+float IARCMission::limitAng(float theta)
+{
+	if(theta < -M_PI)theta += 2*M_PI;
+	if(theta > M_PI)theta -= 2*M_PI;
+	return theta;
+}
 
 
 
