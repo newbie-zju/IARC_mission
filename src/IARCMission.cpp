@@ -454,17 +454,17 @@ bool IARCMission::irobotSafe(double theta)
 
 bool IARCMission::mission_takeoff()
 {
-	/*ros::spinOnce();
+	ros::spinOnce();
 	CDJIDrone->drone_arm();
 	while((ros::ok()) && (localPosNED.z<1.2))
 	{
 		ros::spinOnce();
-		ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
-		CDJIDrone->attitude_control(0x80, 0, 0, 0.8, yaw_origin);
+		//ROS_INFO_THROTTLE(0.3, "PosNED.z=%4.2f",localPosNED.z);
+		CDJIDrone->attitude_control(0x00, 0, 0, 0.8, yaw_origin);
 		ROS_INFO_THROTTLE(1,"taking off...");
 		usleep(20000);
-	}*/
-
+	}
+/*
 	CDJIDrone->takeoff();
 	for(int i = 0; i < 500; i ++) 
 	{
@@ -473,21 +473,22 @@ bool IARCMission::mission_takeoff()
 		CDJIDrone->local_position_control(localPosNED.x, localPosNED.y, 1.6, yaw_origin );
 		usleep(20000);
 	}
-
+*/
+	
 	return true;
 }
 
 bool IARCMission::mission_land()
 {
-/*
+
 	for(int i = 0; i < 100; i ++) 
 	{
 		CDJIDrone->attitude_control(0x40, 0, 0, -0.3, yaw_origin);
 		ROS_INFO_THROTTLE(1,"landing...");
 		usleep(20000);
 	}
-*/
-	CDJIDrone->landing();
+
+	//CDJIDrone->landing();
 	return true;
 }
 
