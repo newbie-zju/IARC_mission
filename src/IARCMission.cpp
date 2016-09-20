@@ -112,6 +112,7 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
 	initialize();
 	CDJIDrone->request_sdk_permission_control();
+	sleep(2);
 	mission_takeoff();
 	//CDJIDrone->takeoff();
 	//for(int i = 0; i < 300; i ++) 
@@ -168,31 +169,40 @@ void IARCMission::irobot_pos_callback(const goal_detected::Pose3DConstPtr& msg)
 	irobotsPosNEDWithReward.theta.clear();
 	irobotsPosNEDWithReward.flag = 0;
 	irobotsPosNEDWithReward.reward.clear();
-	for(int i = 0;i != msg->flag;i++)
+	irobotPosNED.x = 0.0;
+	irobotPosNED.y = 0.0;
+	irobotPosNED.z = 0.0;
+	irobotPosNED.flag = 0;
+	irobotPosNED.theta = 0.0;
+	if(msg->flag > 0)
 	{
-		irobotsPosNEDWithReward.x.push_back(msg->x[i]);
-		irobotsPosNEDWithReward.y.push_back(msg->y[i]);
-		irobotsPosNEDWithReward.z.push_back(msg->z[i]);
-		irobotsPosNEDWithReward.theta.push_back(msg->theta[i]);
 		irobotsPosNEDWithReward.flag = msg->flag;
-		irobotsPosNEDWithReward.reward.push_back(0.0);
-	}
-	irobotReward();		//calculate reward of each irobot
-	float minReward = 999.9;
-	int minRewardIndex = 999;
-	for(int i = 0;i != irobotsPosNEDWithReward.flag;i++)
-	{
-		if(irobotsPosNEDWithReward.reward[i] < minReward)	//find the irobot with the smallest reward, which meas forward to red line, and should to be track & approach
+		irobotPosNED.flag = msg->flag;
+		for(int i = 0;i != msg->flag;i++)
 		{
-			minReward = irobotsPosNEDWithReward.reward[i];
-			minRewardIndex = i;
+			irobotsPosNEDWithReward.x.push_back(msg->x[i]);
+			irobotsPosNEDWithReward.y.push_back(msg->y[i]);
+			irobotsPosNEDWithReward.z.push_back(msg->z[i]);
+			irobotsPosNEDWithReward.theta.push_back(msg->theta[i]);
+			irobotsPosNEDWithReward.reward.push_back(0.0);
 		}
+		irobotReward();		//calculate reward of each irobot
+		float minReward = 999.9;
+		int minRewardIndex = 999;
+		for(int i = 0;i != irobotsPosNEDWithReward.flag;i++)
+		{
+			if(irobotsPosNEDWithReward.reward[i] < minReward)	//find the irobot with the smallest reward, which meas forward to red line, and should to be track & approach
+			{
+				minReward = irobotsPosNEDWithReward.reward[i];
+				minRewardIndex = i;
+			}
+		}
+		irobotPosNED.x = irobotsPosNEDWithReward.x[minRewardIndex];
+		irobotPosNED.y = irobotsPosNEDWithReward.y[minRewardIndex];
+		irobotPosNED.z = irobotsPosNEDWithReward.z[minRewardIndex];
+		irobotPosNED.theta = irobotsPosNEDWithReward.theta[minRewardIndex];
+		ROS_ERROR_THROTTLE(0.2,"selected irobotPosNED=(%4.2f,%4.2f,%4.2f),flag=%d",irobotPosNED.x,irobotPosNED.y,irobotPosNED.theta,irobotPosNED.flag);
 	}
- 	irobotPosNED.x = irobotsPosNEDWithReward.x[minRewardIndex];
-	irobotPosNED.y = irobotsPosNEDWithReward.y[minRewardIndex];
-	irobotPosNED.z = irobotsPosNEDWithReward.z[minRewardIndex];
-	irobotPosNED.theta = irobotsPosNEDWithReward.theta[minRewardIndex];
-	irobotPosNED.flag = irobotsPosNEDWithReward.flag;
 }
 
 void IARCMission::dji_local_pos_callback(const dji_sdk::LocalPositionConstPtr& msg)
@@ -396,13 +406,13 @@ void IARCMission::missionApproach()
 			if((uint8_t)0x50 == TG_srv.response.flightFlag)
 				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 		}
-		if(localPosNED.z < 0.2)	//TODO: Z!!??  accumulated error in z axis!!
+		if(localPosNED.z < 0.3)	//TODO: Z!!??  accumulated error in z axis!!
 		{
 			ROS_INFO("going to land...");
 			mission_land();
 			gotoApproach = false;
 			//CDJIDrone->request_sdk_permission_control();
-			sleep(10);
+			//sleep(10);
 			mission_takeoff();
 			break;
 		}
@@ -423,7 +433,7 @@ void IARCMission::missionFree()
 	TG_srv.request.irobotPosNEDx = 0.0;
 	TG_srv.request.irobotPosNEDy = 0.0;
 	TG_srv.request.irobotPosNEDz = 0.0;
-	TG_srv.request.theta = irobotPosNED.theta;
+	TG_srv.request.theta = 0.0;
 	TG_srv.request.cruiseStep = 0;
 	if(!TG_client.call(TG_srv))
 		ROS_INFO_THROTTLE(0.2,"IARCMission TG_client.call failled......");
@@ -477,8 +487,7 @@ bool IARCMission::gotoTrack()
 
 bool IARCMission::gotoApproach()
 {
-	if(getLength2f(localPosNED.x-irobotPosNED.x,localPosNED.y-irobotPosNED.y)<1.0) return true;
-	else return false;
+	return ((irobotPosNED.flag>0) && (!irobotSafe(irobotPosNED.theta)) && (getLength2f(localPosNED.x-irobotPosNED.x,localPosNED.y-irobotPosNED.y)<1.0));
 }
 
 bool IARCMission::irobotSafe(double theta)
@@ -487,16 +496,24 @@ bool IARCMission::irobotSafe(double theta)
 						//green					red				yaw_origin - 0.5*M_PI	|
 						//green					red								------	|------> Gy 
 						//			white												| 
-    return ((theta > limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI - 0.5*M_PI))&&(theta < limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI)));//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
+	float dtheta = theta - yaw_origin*M_PI/180.0;
+	ROS_ERROR("theta=%4.2f,yaw_0=%4.2f,dtheta=%4.2f,ret=%d",theta,yaw_origin*M_PI/180.0,dtheta,(int)(limitAng(dtheta)<0.0));
+	return (limitAng(dtheta)>0.0);
+/*bool ret = ((theta > limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI - 0.5*M_PI))&&(theta < limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI)));
+	ROS_ERROR("%4.2f < theta(%4.2f) < %4.2f,ret=%d",limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI - 0.5*M_PI),theta,limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI),(int)ret);
+    return ret;//TODO:this is irobot theta in NED frame, supporse to transform to ground frame
+*/
 }
 
 void IARCMission::irobotReward()
 {
-	//if theta is forward to red line, reward is small, should goto track and approach, should be selected
+	//if theta is forward to green line, reward is small, should goto track and approach, should be selected
 	for(int i = 0;i != irobotsPosNEDWithReward.flag;i++)
 	{
 		float reward;
-		reward = fabs(limitAng(irobotsPosNEDWithReward.theta[i]) - limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI));
+		//reward = fabs(limitAng(irobotsPosNEDWithReward.theta[i]) - limitAng(yaw_origin*M_PI/180.0 + 0.5*M_PI));
+		reward  =fabs(limitAng(irobotsPosNEDWithReward.theta[i] - limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI)));
+		//ROS_INFO_THROTTLE(0.2,"irobotPosNED=(%4.2f,%4.2f),reward=%4.2f",irobotsPosNEDWithReward.x[i],irobotsPosNEDWithReward.y[i],reward);
 		irobotsPosNEDWithReward.reward.push_back(reward);
 	}
 }
@@ -531,9 +548,9 @@ bool IARCMission::mission_takeoff()
 bool IARCMission::mission_land()
 {
 
-	for(int i = 0; i < 100; i ++) 
+	for(int i = 0; i < 200; i ++) 
 	{
-		CDJIDrone->attitude_control(0x40, 0, 0, -0.3, yaw_origin);
+		CDJIDrone->attitude_control(0x00, 0, 0, -0.3, yaw_origin);
 		ROS_INFO_THROTTLE(1,"landing...");
 		usleep(20000);
 	}

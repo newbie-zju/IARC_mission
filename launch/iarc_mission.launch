@@ -6,13 +6,13 @@
 	<!-- Camera Settings -->
  
 	<!-- Node Settings -->
-	<arg name="yaw_origin_" default="-0.896655"/>
+	<arg name="yaw_origin_" default="-0.944731"/>
 	<arg name="xMax_" default="2.0"/>
 	<arg name="yMax_" default="6.0"/>
 	<arg name="output" default="screen"/>
 	<arg name="bluefox" default="true"/>
 	<arg name="proc" default="true"/>
-   	<arg name="goalDetected" default="false"/>
+   	<arg name="goalDetected" default="true"/>
 	<arg name="trajectorygenerator" default="true"/>
 	<arg name="obstacle_avoidance" default="true"/>
 	<arg name="iarc_tf" default="true"/>
@@ -38,7 +38,7 @@
    
 	<!-- goalDetected -->
     	<node if="$(arg goalDetected)" 
-		pkg="goal_detected" type="goal_detected" name="goal_detected" output="screen">
+		pkg="goal_detected" type="goal_detected" name="goal_detected">
     	</node>
 
 	<!-- trajectory generator -->

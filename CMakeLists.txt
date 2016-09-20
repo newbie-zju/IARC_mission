@@ -145,10 +145,10 @@ target_link_libraries(iarc_mission_node
  ${catkin_LIBRARIES}
 )
 
-add_executable(goal_pose_pub_test src/pub_goal_pose.cpp)
-target_link_libraries(goal_pose_pub_test
-	${catkin_LIBRARIES}
-)
+#add_executable(goal_pose_pub_test src/pub_goal_pose.cpp)
+#target_link_libraries(goal_pose_pub_test
+#	${catkin_LIBRARIES}
+#)
 ##add_executable(goal_pose_pub_test src/pub_goal_pose.cpp)
 ##target_link_libraries(goal_pose_pub_test
 ##	${catkin_LIBRARIES}
