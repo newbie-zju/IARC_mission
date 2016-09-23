@@ -22,9 +22,9 @@
 	<include file="$(find dji_sdk)/launch/sdk_manifold.launch"/>
 
 	<!-- hokuyo_node -->
-	<include file="$(find hokuyo_node)/hokuyo.launch"/>
+	<!--include file="$(find hokuyo_node)/hokuyo.launch"/-->
 
-	<node pkg="guidance" type="guidanceNode" name="guidance"/>
+	<!--node pkg="guidance" type="guidanceNode" name="guidance"/-->
 
 	<!-- laser_detect -->
 	<include file="$(find laser_detect)/launch/laser_detect.launch"/>
@@ -40,7 +40,7 @@
    
 	<!-- goalDetected -->
     	<node if="$(arg goalDetected)" 
-		pkg="goal_detected" type="goal_detected" name="goal_detected">
+		pkg="goal_detected" type="goal_detected_zj" name="goal_detected">
     	</node>
 
 	<!-- trajectory generator -->

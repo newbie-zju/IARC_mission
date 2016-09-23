@@ -13,7 +13,10 @@
 #include <iarc_mission/TG.h>
 #include "unistd.h"
 #include <vector>
+#include <iarc_tf/Velocity.h>
+#include <geometry_msgs/PointStamped.h>
 enum DPstate_{FREE,CRUISE,TRACK,APPROACH};//飞行器状态：巡航、跟踪、接近
+enum VelState_{NED,GROUND};
 #define PI 3.1415926
 using namespace std;
 namespace mission{
@@ -27,7 +30,9 @@ public:
 	ros::Subscriber flight_ctrl_dst_sub;
 	ros::Subscriber obstacleAvoidance_sub;
 	ros::Subscriber boundaryDetect_sub;
+	ros::Subscriber quadrotorPosGround_sub;
 	ros::ServiceClient TG_client;
+	ros::ServiceClient tf_vel_client;
 	struct irobotPosNED_
 	{
 		double x;
@@ -49,6 +54,7 @@ public:
 	irobotsPosNEDWithReward_ irobotsPosNEDWithReward;
 	dji_sdk::LocalPosition localPosNED;
 	geometry_msgs::Point32 flight_ctrl_dst;
+	geometry_msgs::Point quadrotorGroundPos;
 	std_msgs::Int8 mission_state_msg;
 	ros::Time free_time;
 	ros::Time free_time_prev;
@@ -73,6 +79,7 @@ public:
 	void dji_local_pos_callback(const dji_sdk::LocalPositionConstPtr &msg);
 	void obstacleAvoidance_callback(const std_msgs::Bool msg);
 	void boundaryDetect_callback(const geometry_msgs::PointConstPtr &msg);
+	void quadrotorPosGroundCallback(const geometry_msgs::PointStampedConstPtr& msg);
 	bool mission_takeoff();
 	bool mission_land();
 	int stateMachine();

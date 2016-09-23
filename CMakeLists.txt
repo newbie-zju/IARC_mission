@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   OpenCV
   std_msgs
   goal_detected
+  iarc_tf
 )
 set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 ## System dependencies are found with CMake's conventions

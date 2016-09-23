@@ -3,6 +3,14 @@
 using namespace std;
 namespace mission{
 /*
+VERTICAL_VELOCITY = 0x00,
+VERTICAL_POSITION = 0x10,
+VERTICAL_THRUST = 0x20,
+HORIZONTAL_ANGLE = 0x00,
+HORIZONTAL_VELOCITY = 0x40,
+HORIZONTAL_POSITION = 0X80
+*/
+/*
 IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
 	double yaw_origin_;
@@ -112,8 +120,32 @@ IARCMission::IARCMission(ros::NodeHandle nh):nh_(nh),nh_param("~")
 {
 	initialize();
 	CDJIDrone->request_sdk_permission_control();
-	sleep(2);
+	sleep(4);
 	mission_takeoff();
+/*
+	ros::spinOnce();
+	while(ros::ok() && quadrotorGroundPos.x < 2.0)
+	{
+		ros::spinOnce();
+		float k = 0.8;
+		float tarVz = k * (1.6 - localPosNED.z);
+		iarc_tf::Velocity srv;
+		srv.request.velocityFrame = GROUND;
+		srv.request.velocityX = 0.3;
+		srv.request.velocityY = 0;
+		float goinsideVx = 0.0;
+		float goinsideVy = 0.0;
+		//ROS_ERROR("tarVx = %f",tarVx);
+		if(tf_vel_client.call(srv))
+		{
+			goinsideVx = srv.response.velocityXRes;
+			goinsideVx = srv.response.velocityYRes;
+		}
+		else{ROS_ERROR_THROTTLE(0.2,"NO TF SERVICE!");}
+		CDJIDrone->attitude_control(0x40, goinsideVx, goinsideVx, tarVz, yaw_origin);
+		ROS_INFO_THROTTLE(0.2,"GO INSIDE...");
+	}
+*/
 	//CDJIDrone->takeoff();
 	//for(int i = 0; i < 300; i ++) 
 	//{
@@ -221,7 +253,11 @@ void IARCMission::boundaryDetect_callback(const geometry_msgs::PointConstPtr& ms
 void IARCMission::obstacleAvoidance_callback(const std_msgs::Bool msg)
 {}
 
-
+void IARCMission::quadrotorPosGroundCallback(const geometry_msgs::PointStampedConstPtr& msg)
+{
+	quadrotorGroundPos.x = msg->point.x;
+	quadrotorGroundPos.y = msg->point.y;
+}
 void IARCMission::initialize()
 {
 	double yaw_origin_;
@@ -245,7 +281,9 @@ void IARCMission::initialize()
 	irobotsPosNEDWithReward.reward.clear();
 	irobot_pos_sub = nh_.subscribe("/goal_detected/goal_pose", 10, &IARCMission::irobot_pos_callback, this);
 	dji_local_pos_sub = nh_.subscribe("/dji_sdk/local_position", 10, &IARCMission::dji_local_pos_callback, this);
+	quadrotorPosGround_sub = nh_.subscribe("/ground_position",10, &IARCMission::quadrotorPosGroundCallback,this);
 	TG_client = nh_.serviceClient<iarc_mission::TG>("/TG/TG_service");
+	tf_vel_client = nh_.serviceClient<iarc_tf::Velocity>("ned_world_velocity_transform_srvice");
 	CDJIDrone = new DJIDrone(nh_);
 }
 
@@ -401,8 +439,9 @@ void IARCMission::missionApproach()
 		else
 		{
 			ROS_INFO_THROTTLE(0.3, "mission_APP:%d,%3.1f,%3.1f,%3.1f",TG_srv.response.flightFlag,TG_srv.response.flightCtrlDstx,TG_srv.response.flightCtrlDsty,TG_srv.response.flightCtrlDstz);
-			if((uint8_t)0x90 == TG_srv.response.flightFlag)
-				CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+			if((uint8_t)0x80 == TG_srv.response.flightFlag)
+				//CDJIDrone->local_position_control(TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+				CDJIDrone->attitude_control(0x80, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 			if((uint8_t)0x50 == TG_srv.response.flightFlag)
 			{
 				ros::spinOnce();
@@ -563,7 +602,7 @@ bool IARCMission::mission_land()
 
 	for(int i = 0; i < 200; i ++) 
 	{
-		CDJIDrone->attitude_control(0x00, 0, 0, -0.3, yaw_origin);
+		CDJIDrone->attitude_control(0x00, 0, 0, -0.6, yaw_origin);
 		ROS_INFO_THROTTLE(1,"landing...");
 		usleep(20000);
 	}
