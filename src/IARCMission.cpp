@@ -415,7 +415,9 @@ void IARCMission::missionTrack()
 				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
 			}
 			if((uint8_t)0x40 == TG_srv.response.flightFlag)
-				CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+				//CDJIDrone->attitude_control(TG_srv.response.flightFlag, TG_srv.response.flightCtrlDstx, TG_srv.response.flightCtrlDsty, TG_srv.response.flightCtrlDstz, yaw_origin);
+		
+			break;
 		}
 	}
 }
@@ -566,7 +568,8 @@ void IARCMission::irobotReward()
 		//reward = fabs(limitAng(irobotsPosNEDWithReward.theta[i]) - limitAng(yaw_origin*M_PI/180.0 + 0.5*M_PI));
 		reward  =fabs(limitAng(irobotsPosNEDWithReward.theta[i] - limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI)));
 		//ROS_INFO_THROTTLE(0.2,"irobotPosNED=(%4.2f,%4.2f),reward=%4.2f",irobotsPosNEDWithReward.x[i],irobotsPosNEDWithReward.y[i],reward);
-		irobotsPosNEDWithReward.reward.push_back(reward);
+		//irobotsPosNEDWithReward.reward.push_back(reward);
+		irobotsPosNEDWithReward.reward[i] = reward;
 	}
 }
 
