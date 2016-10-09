@@ -550,9 +550,13 @@ bool IARCMission::irobotSafe(double theta)
 						//green					red				yaw_origin - 0.5*M_PI	|
 						//green					red								------	|------> Gy 
 						//			white												| 
+	/*	
 	float dtheta = theta - yaw_origin*M_PI/180.0;
 	ROS_ERROR("theta=%4.2f,yaw_0=%4.2f,dtheta=%4.2f,ret=%d",theta,yaw_origin*M_PI/180.0,dtheta,(int)(limitAng(dtheta)<0.0));
 	return (limitAng(dtheta)>0.0);
+	*/
+	float dtheta = fabs(limitAng(theta - limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI)));
+	return dtheta > M_PI/3.0;
 /*bool ret = ((theta > limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI - 0.5*M_PI))&&(theta < limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI)));
 	ROS_ERROR("%4.2f < theta(%4.2f) < %4.2f,ret=%d",limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI - 0.5*M_PI),theta,limitAng(yaw_origin*M_PI/180.0 - 0.5*M_PI + 0.5*M_PI),(int)ret);
     return ret;//TODO:this is irobot theta in NED frame, supporse to transform to ground frame

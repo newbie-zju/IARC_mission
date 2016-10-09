@@ -24,6 +24,7 @@
 	<!-- hokuyo_node -->
 	<include file="$(find hokuyo_node)/hokuyo.launch"/>
 
+	<!-- guidance_node -->
 	<node pkg="guidance" type="guidanceNode" name="guidance"/>
 
 	<!-- laser_detect -->
@@ -40,7 +41,7 @@
    
 	<!-- goalDetected -->
     	<node if="$(arg goalDetected)" 
-		pkg="goal_detected" type="goal_detected_zj" name="goal_detected">
+		pkg="goal_detected" type="goal_detected" name="goal_detected">
     	</node>
 
 	<!-- trajectory generator -->
@@ -66,7 +67,7 @@
 		pkg="iarc_tf" type="ned_world_dynamic_node" name="ned_world_dynamic_node" output="screen">
 		<param name="yaw_origin" type="double" value="$(arg yaw_origin_)"/>
 		<param name="sta_x" type="double" value="0.0"/>
-		<param name="sta_y" type="double" value="10.0"/>
+		<param name="sta_y" type="double" value="12.0"/>
 	</node>
 	<node if="$(arg iarc_tf)"
 		pkg="iarc_tf" type="ned_world_velocity_transform_node" name="ned_world_velocity_transform_node" output="screen">
